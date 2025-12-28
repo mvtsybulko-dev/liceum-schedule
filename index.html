@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Розклад Аудиторії</title>
+    <style>
+        :root {
+            --bg-color: #f4f7f6;
+            --text-color: #333;
+            --active-color: #2ecc71; /* Зелений для поточного уроку */
+            --next-color: #f1c40f;   /* Жовтий для наступного */
+            --past-color: #bdc3c7;   /* Сірий для минулих */
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        /* Шапка: Дата, Час, Аудиторія */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #2c3e50;
+            color: white;
+            padding: 20px 40px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .header-info h1 { margin: 0; font-size: 2.5em; }
+        .header-info p { margin: 5px 0 0; font-size: 1.2em; opacity: 0.8; }
+        #clock { font-size: 3.5em; font-weight: bold; }
+
+        /* Таблиця розкладу */
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 10px;
+        }
+
+        th {
+            text-align: left;
+            padding: 10px 20px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            font-size: 0.9em;
+        }
+
+        tr {
+            background: var(--white);
+            transition: all 0.3s ease;
+        }
+
+        td {
+            padding: 15px 20px;
+            font-size: 1.2em;
+        }
+
+        tr td:first-child { border-radius: 10px 0 0 10px; font-weight: bold; width: 50px; }
+        tr td:last-child { border-radius: 0 10px 10px 0; }
+
+        /* Стилі станів */
+        .active-lesson {
+            background: var(--active-color) !important;
+            color: white;
+            transform: scale(1.02);
+            box-shadow: 0 5px 15px rgba(46, 204, 113, 0.4);
+        }
+
+        .next-lesson {
+            border: 3px solid var(--next-color);
+            position: relative;
+        }
+        
+        .next-lesson::after {
+            content: "НАСТУПНИЙ";
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.7em;
+            background: var(--next-color);
+            padding: 4px 8px;
+            border-radius: 5px;
+            color: #333;
+        }
+
+        .past-lesson {
+            opacity: 0.5;
+            filter: grayscale(1);
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-info">
+        <h1 id="room-number">Аудиторія 101</h1>
+        <p id="current-date">Завантаження дати...</p>
+    </div>
+    <div id="clock">00:00:00</div>
+</header>
+
+<table id="schedule-table">
+    <thead>
+        <tr>
+            <th>№</th>
+            <th>Час</th>
+            <th>Клас</th>
+            <th>Предмет</th>
+            <th>Викладач</th>
+        </tr>
+    </thead>
+    <tbody id="schedule-body">
+        </tbody>
+</table>
+
+<script>
+        // 1. Отримуємо номер аудиторії з URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomNumber = urlParams.get('room') || "Не вказана"; 
+
+    // Оновлюємо заголовок на сторінці
+    document.getElementById('room-number').innerText = "Аудиторія " + roomNumber;
+
+    const timeSlots = [
+        { id: 1, start: "09:00", end: "09:45" },
+        { id: 2, start: "09:50", end: "10:35" },
+        { id: 3, start: "10:40", end: "11:25" },
+        { id: 4, start: "11:40", end: "12:25" },
+        { id: 5, start: "12:30", end: "13:15" },
+        { id: 6, start: "13:20", end: "14:05" },
+        { id: 7, start: "15:00", end: "15:45" },
+        { id: 8, start: "15:45", end: "16:30" },
+        { id: 9, start: "16:30", end: "17:15" }
+    ];
+
+    // 2. Тепер дані розбиті по аудиторіях
+    const allSchedules = {
+        "101": {
+            1: { group: "10-А", subject: "Математика", teacher: "Іванов І.І." },
+            2: { group: "10-А", subject: "Українська мова", teacher: "Петренко О.М." },
+            3: { group: "10-Б", subject: "Фізика", teacher: "Сидоров А.П." },
+            4: { group: "10-В",  subject: "Історія", teacher: "Бондар В.В." },
+            5: { group: "10-А", subject: "Інформатика", teacher: "Ковальчук Т.О." },
+            6: { group: "10-Б",  subject: "Англійська мова", teacher: "Гарсія М." },
+            7: { group: "10-Б", subject: "Географія", teacher: "Павленко Д.О." },
+            8: { group: "10-А",  subject: "Фізкультура", teacher: "Спортивний С.С." },
+            9: { group: "Всі",   subject: "Виховна година", teacher: "Куратор" }
+        },
+        "102": {
+            1: { group: "11-А", subject: "Математика", teacher: "Іванов І.І." },
+            2: { group: "11-А", subject: "Українська мова", teacher: "Петренко О.М." },
+            3: { group: "11-Б", subject: "Фізика", teacher: "Сидоров А.П." },
+            4: { group: "11-В",  subject: "Історія", teacher: "Бондар В.В." },
+            5: { group: "11-А", subject: "Інформатика", teacher: "Ковальчук Т.О." },
+            6: { group: "11-Б",  subject: "Англійська мова", teacher: "Гарсія М." },
+            7: { group: "11-Б", subject: "Географія", teacher: "Павленко Д.О." },
+            8: { group: "11-А",  subject: "Фізкультура", teacher: "Спортивний С.С." },
+            9: { group: "Всі",   subject: "Виховна година", teacher: "Куратор" }
+        }
+    };
+
+    function updateDisplay() {
+        const now = new Date();
+        const currentTimeStr = now.getHours().toString().padStart(2, '0') + ":" + 
+                               now.getMinutes().toString().padStart(2, '0');
+        
+        document.getElementById('clock').innerText = now.toLocaleTimeString('uk-UA');
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('current-date').innerText = now.toLocaleDateString('uk-UA', options);
+
+        const tableBody = document.getElementById('schedule-body');
+        tableBody.innerHTML = '';
+
+        // Беремо дані саме для поточної аудиторії
+        const currentSchedule = allSchedules[roomNumber] || {};
+
+        let foundActive = false;
+        let foundNext = false;
+
+        timeSlots.forEach(slot => {
+            const tr = document.createElement('tr');
+            const lesson = currentSchedule[slot.id] || { group: "-", subject: "Вільна аудиторія", teacher: "-" };
+
+            if (currentTimeStr >= slot.start && currentTimeStr <= slot.end) {
+                tr.classList.add('active-lesson');
+                foundActive = true;
+            } else if (currentTimeStr < slot.start && !foundActive && !foundNext) {
+                tr.classList.add('next-lesson');
+                foundNext = true;
+            } else if (currentTimeStr > slot.end) {
+                tr.classList.add('past-lesson');
+            }
+
+            tr.innerHTML = `
+                <td>${slot.id}</td>
+                <td>${slot.start} - ${slot.end}</td>
+                <td style="font-weight: bold;">${lesson.group}</td>
+                <td>${lesson.subject}</td>
+                <td>${lesson.teacher}</td>
+            `;
+            tableBody.appendChild(tr);
+        });
+    }
+
+    setInterval(updateDisplay, 1000);
+    updateDisplay();
+    </script>
+
+</body>
+</html>
