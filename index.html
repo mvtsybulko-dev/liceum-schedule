@@ -128,11 +128,10 @@
 </table>
 
 <script>
-    // 1. ВСТАВТЕ ВАШЕ ПОСИЛАННЯ НА CSV СЮДИ:
-    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRY03psToJ2EZggHUjGQJYMyAS6M4C2ESDIhLQyPK01UdoaKsRTuWPY3kIJlIXMYhwm6cph95UFmPR1/pub?output=csv';
-
+    const csvUrl = 'ВАШЕ_ПОСИЛАННЯ_З_КРОКУ_2';
     const urlParams = new URLSearchParams(window.location.search);
     const roomNumber = urlParams.get('room') || "Не вказана"; 
+    
     document.getElementById('room-number').innerText = "Аудиторія " + roomNumber;
 
     const timeSlots = [
@@ -149,31 +148,43 @@
 
     let currentSchedule = {};
 
-    // Функція для завантаження даних з Google Таблиць
     async function loadData() {
         try {
             const response = await fetch(csvUrl);
             const data = await response.text();
-            const rows = data.split('\n').slice(1); // пропускаємо заголовок
+            const rows = data.split('\n').slice(1); 
+
+            // Отримуємо номер дня тижня (1-Пн, 2-Вт ... 7-Нд)
+            let todayNum = new Date().getDay();
+            if (todayNum === 0) todayNum = 7; // Перетворюємо неділю з 0 на 7
 
             const newSchedule = {};
             
             rows.forEach(row => {
-                const [room, lessonId, group, subject, teacher] = row.split(',');
-                
-                if (room && room.trim() === roomNumber) {
-                    newSchedule[lessonId.trim()] = {
-                        group: group.trim(),
-                        subject: subject.trim(),
-                        teacher: teacher.trim()
+                const columns = row.split(',');
+                if (columns.length < 6) return;
+
+                const room = columns[0].trim();
+                const lessonId = columns[1].trim();
+                const group = columns[2].trim();
+                const subject = columns[3].trim();
+                const teacher = columns[4].trim();
+                const day = columns[5].trim(); // Цифра 1-7 у стовпчику F
+
+                // Фільтруємо за кімнатою ТА за номером дня
+                if (room === roomNumber && day === String(todayNum)) {
+                    newSchedule[lessonId] = {
+                        group: group,
+                        subject: subject,
+                        teacher: teacher
                     };
                 }
             });
 
             currentSchedule = newSchedule;
-            updateDisplay(); // оновлюємо екран після завантаження
+            updateDisplay();
         } catch (error) {
-            console.error("Помилка завантаження даних:", error);
+            console.error("Помилка завантаження:", error);
         }
     }
 
@@ -183,10 +194,19 @@
                                now.getMinutes().toString().padStart(2, '0');
         
         document.getElementById('clock').innerText = now.toLocaleTimeString('uk-UA');
-        document.getElementById('current-date').innerText = now.toLocaleDateString('uk-UA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        document.getElementById('current-date').innerText = now.toLocaleDateString('uk-UA', { 
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+        });
 
         const tableBody = document.getElementById('schedule-body');
         tableBody.innerHTML = '';
+
+        const lessonsKeys = Object.keys(currentSchedule);
+
+        if (lessonsKeys.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:50px; font-size:1.5em; color:#7f8c8d;">Сьогодні занять немає</td></tr>';
+            return;
+        }
 
         let foundActive = false;
         let foundNext = false;
@@ -205,21 +225,23 @@
                 tr.classList.add('past-lesson');
             }
 
-            tr.innerHTML = `<td>${slot.id}</td><td>${slot.start}-${slot.end}</td><td><b>${lesson.group}</b></td><td>${lesson.subject}</td><td>${lesson.teacher}</td>`;
+            tr.innerHTML = `
+                <td>${slot.id}</td>
+                <td>${slot.start}-${slot.end}</td>
+                <td><b>${lesson.group}</b></td>
+                <td>${lesson.subject}</td>
+                <td>${lesson.teacher}</td>
+            `;
             tableBody.appendChild(tr);
         });
     }
 
-    // Завантажуємо дані при старті
     loadData();
-    
-    // Оновлюємо годинник щосекунди
     setInterval(updateDisplay, 1000);
-    
-    // Оновлюємо дані з таблиці кожні 5 хвилин (300000 мс)
-    setInterval(loadData, 300000);
+    setInterval(loadData, 300000); 
 </script>
 
 </body>
 
 </html>
+
